@@ -275,7 +275,7 @@ The media types used in this document are:
 | application/cose-c509-pkcs10+cbor      | TBD  | C509CertificationRequest | {{I-D.ietf-cose-cbor-encoded-cert}} |
 | application/c509-pubkey+cbor           | TBD3 | C509PublicKey | this document |
 | application/c509-kemchall+cbor         | TBD7 | C509KemChall  | this document |
-| application/cose-c509-crtemplate+cbor  | TBD  | C509Certification-RequestTemplate | {{I-D.ietf-cose-cbor-encoded-cert}} |
+| application/cose-c509-crtemplate+cbor  | TBD  | C509Certification RequestTemplate | {{I-D.ietf-cose-cbor-encoded-cert}} |
 | application/cose-c509-pem+cbor         | TBD  | C509PEM (key + certificate) | {{I-D.ietf-cose-cbor-encoded-cert}} |
 | application/c509-crl+cbor              | TBD  | C509CRL     | {{I-D.liao-cose-c509-revocation}} |
 | application/c509-crlinfo+cbor          | TBD  | C509CRLInfo | {{I-D.liao-cose-c509-revocation}} |
