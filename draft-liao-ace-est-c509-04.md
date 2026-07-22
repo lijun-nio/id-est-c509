@@ -144,7 +144,7 @@ The operations for EST over HTTPS used in this document are (those wit `new` mar
 | CoAP/DTLS     | EST over HTTPS |     | Content- | Content- |
 | Operation     | Operation      |     | Format   | Format   |
 +===============+================+=====+==========+==========+
-| (Not Related) |                |     |          |          |
+| (Not Related) | caps           |     |          |          |
 +---------------+----------------+-----+----------+----------+
 | crts          | cacerts        | M   | (none)   | - TBD    |
 |               |                |     |          | - TBD    |
@@ -275,7 +275,7 @@ The media types used in this document are:
 | application/cose-c509-pkcs10+cbor      | TBD  | C509CertificationRequest | {{I-D.ietf-cose-cbor-encoded-cert}} |
 | application/c509-pubkey+cbor           | TBD3 | C509PublicKey | this document |
 | application/c509-kemchall+cbor         | TBD7 | C509KemChall  | this document |
-| application/cose-c509-crtemplate+cbor  | TBD  | C509CertificationRequestTemplate | {{I-D.ietf-cose-cbor-encoded-cert}} |
+| application/cose-c509-crtemplate+cbor  | TBD  | C509Certification-RequestTemplate | {{I-D.ietf-cose-cbor-encoded-cert}} |
 | application/cose-c509-pem+cbor         | TBD  | C509PEM (key + certificate) | {{I-D.ietf-cose-cbor-encoded-cert}} |
 | application/c509-crl+cbor              | TBD  | C509CRL     | {{I-D.liao-cose-c509-revocation}} |
 | application/c509-crlinfo+cbor          | TBD  | C509CRLInfo | {{I-D.liao-cose-c509-revocation}} |
@@ -579,7 +579,8 @@ An authenticated EST client sends a POST request containing a `C509PublicKey` ({
 ~~~
 Method: POST
 Request target: /.well-known/est/<label>/kemc
-Media type: application/c509-pubkey+cbor (HTTP)/ Content-Format TBD (CoAP)
+Media type: application/c509-pubkey+cbor (HTTP) /
+            Content-Format TBD (CoAP)
 Body: C509PublicKey
 ~~~
 
@@ -607,7 +608,8 @@ An authenticated EST client sends a POST request containing a C509 CSR ({{c509-c
 Method: POST
 HTTP Request target: /.well-known/est/<label>/simpleenroll
 CoAP Request target: /.well-known/est/<label>/sen
-Media type: application/cose-c509-pkcs10+cbor (HTTP) / Content-Format TBD (CoAP)
+Media type: application/cose-c509-pkcs10+cbor (HTTP) /
+            Content-Format TBD (CoAP)
 Body: C509CertificationRequest
 ~~~
 
@@ -634,7 +636,8 @@ The `C509ChangeSubjectName` attribute defined in {{change-subject-name}} MAY be 
 Method: POST
 HTTP Request target: /.well-known/est/<label>/simplereenroll
 CoAP Request target: /.well-known/est/<label>/sren
-Media type: application/cose-c509-pkcs10+cbor (HTTP) / Content-Format TBD (CoAP)
+Media type: application/cose-c509-pkcs10+cbor (HTTP) /
+            Content-Format TBD (CoAP)
 Body: C509CertificationRequest
 ~~~
 
@@ -661,7 +664,8 @@ An authenticated EST client sends a POST request containing a C509 CSR.  The `su
 Method: POST
 HTTP Request target: /.well-known/est/<label>/serverkeygen
 CoAP Request target: /.well-known/est/<label>/skc
-Media type: application/cose-c509-pkcs10+cbor (HTTP) / Content-Format TBD (CoAP)
+Media type: application/cose-c509-pkcs10+cbor (HTTP) /
+            Content-Format TBD (CoAP)
 Body: C509CertificationRequest
 ~~~
 
