@@ -2,7 +2,7 @@
 v: 3
 
 title: "EST for C509 Certificates"
-docname: draft-liao-ace-est-c509-03
+docname: draft-liao-ace-est-c509-04
 abbrev: EST-C509
 
 cat: std
@@ -40,6 +40,7 @@ normative:
   RFC9810:
   I-D.ietf-cose-cbor-encoded-cert:
   I-D.liao-cose-c509-revocation:
+  I-D.liao-cose-c509-additions:
   NIST.SP.800-227:
     target: https://doi.org/10.6028/NIST.SP.800-227
     title: Recommendation for Key-Encapsulation Mechanisms
@@ -83,7 +84,7 @@ This document defines EST operations that carry C509 objects in place of DER X.5
 A key property of this design is that EST clients do not require a CBOR parser or generator:
 
 - For non-KEM-only key types, the C509 CSR is typically pre-provisioned as an opaque binary blob by the device manufacturer or a provisioning tool; the EST client sends it verbatim as the POST body of `simpleenroll` / `sen` or `simplereenroll` / `sren` without interpreting its contents.
-- For KEM-only key types, the EST client needs to communicate with the key device to get the public key (`C509PublicKey`) and the certification request (`C509CertificationRequest`) after receiving the KEM challenge object (`C509KemChall`) from the EST server; in this case, the EST client considers the `C509PublicKey`, `C509KemChall`, and `C509CertificationRequest` opaque binary blobs.
+- For KEM-only key types, the EST client needs to communicate with the key device to get the public key (`C509SubjectPublicKeyInfo`) and the certification request (`C509CertificationRequest`) after receiving the KEM challenge object (`C509KemChall`) from the EST server; in this case, the EST client considers the `C509SubjectPublicKeyInfo`, `C509KemChall`, and `C509CertificationRequest` opaque binary blobs.
 
 - For all key types, the C509 certificate (and private key in the operation `serverkeygen` / `skc`) returned in the response is stored directly to persistent memory without parsing.  This property makes the EST client implementation extremely lightweight.
 
@@ -120,8 +121,8 @@ The operations for EST over HTTPS used in this document are (those wit `new` mar
 |          |   | retrieval   |              | crtemplate+cbor   |
 +----------+---+-------------+--------------+-------------------+
 | kemc     | O | KEM         | application/ | application/      |
-| (new)    |   | challenge   | c509-pubkey  | c509-kemchall     |
-|          |   | issuance    | +cbor        | +cbor             |
+| (new)    |   | challenge   | cose-c509-   | c509-kemchall     |
+|          |   | issuance    | pubkey+cbor  | +cbor             |
 +----------+---+-------------+--------------+-------------------+
 | simple   | M | Certificate | application/ | application/      |
 | enroll   |   | enrollment  | cose-c509-   | cose-c509-        |
@@ -273,8 +274,8 @@ The media types used in this document are:
 | application/cose-c509+cbor             | TBD  | COSE_C509 | {{I-D.ietf-cose-cbor-encoded-cert}} |
 | application/cose-c509+cbor;usage=chain | TBD  | COSE_C509 | {{I-D.ietf-cose-cbor-encoded-cert}} |
 | application/cose-c509-pkcs10+cbor      | TBD  | C509CertificationRequest | {{I-D.ietf-cose-cbor-encoded-cert}} |
-| application/c509-pubkey+cbor           | TBD3 | C509PublicKey | this document |
-| application/c509-kemchall+cbor         | TBD7 | C509KemChall  | this document |
+| application/cose-c509-pubkey+cbor      | TBD3 | C509SubjectPublicKeyInfo | {{I-D.liao-cose-c509-additions}} |
+| application/c509-kemchall+cbor         | TBD7 | C509KemChall  | [[this document]] |
 | application/cose-c509-crtemplate+cbor  | TBD  | C509Certification RequestTemplate | {{I-D.ietf-cose-cbor-encoded-cert}} |
 | application/cose-c509-pem+cbor         | TBD  | C509PEM (key + certificate) | {{I-D.ietf-cose-cbor-encoded-cert}} |
 | application/c509-crl+cbor              | TBD  | C509CRL     | {{I-D.liao-cose-c509-revocation}} |
@@ -315,30 +316,13 @@ This CRAttribute MAY be included in a `simplereenroll` / `sren` request to chang
 
 `simpleenroll` / `sen` and `simplereenroll` / `sren` MUST verify the PoP signature in the C509 CSR before issuing a certificate.  The `serverkeygen` / `skc` operation does not require PoP verification because the EST server generates the key pair itself.
 
-### C509PublicKey {#c509pubkey}
-
-A `C509PublicKey` contains a subject public key in the C509 encoding.  It uses the same field types as `TbsCertificate` in {{I-D.ietf-cose-cbor-encoded-cert}} and is defined as:
-
-~~~~~~~~~~~
-C509PublicKey = [
-  subjectPublicKeyAlgorithm : AlgorithmIdentifier,
-  subjectPublicKey          : Defined
-]
-~~~~~~~~~~~
-{: sourcecode-name="c509est.cddl"}
-
-The `subjectPublicKeyAlgorithm` field uses the full `AlgorithmIdentifier` encoding as defined in {{I-D.ietf-cose-cbor-encoded-cert}}, without limitation.
-The `subjectPublicKey` field uses the same encoding as in C509 certificates: for most algorithms it is a CBOR byte string, but for RSA public keys it is encoded as an array of two unwrapped CBOR unsigned bignums `[~biguint, ~biguint]` when the exponent is not 65537, as specified in {{I-D.ietf-cose-cbor-encoded-cert}}.
-
-The media type of `C509PublicKey` is `application/c509-pubkey+cbor` (see {{iana-c509-pubkey}}); the corresponding CoAP Content-Format is defined in {{content-format}}.  The "magic number" is TBD2, using the reserved CBOR tag 55799 and Content-Format TBD3, as described in {{RFC9277, Section 2.2}}.
-
 ### Proof of Possession for KEM Private Keys {#pop-kem}
 
 Some public-key algorithms are KEM-only (key-encapsulation mechanisms) and do not provide a signature operation suitable for the traditional PoP signature carried in a `C509CertificationRequest`.  For CSRs whose `subjectPublicKeyAlgorithm` is a KEM algorithm, an EST server MUST obtain explicit proof that the requester holds the corresponding KEM private key.  This document specifies an interactive KEM challenge–response PoP mechanism.
 
 The recommended KEM PoP flow is:
 
-- Challenge issuance: Upon receipt of a KEM public key (`C509PublicKey`) in the `kemc` operation, an EST server returns a CBOR-encoded KEM challenge object (`C509KemChall`) with media type `application/c509-kemchall+cbor`.
+- Challenge issuance: Upon receipt of a KEM public key (`C509SubjectPublicKeyInfo`) in the `kemc` operation, an EST server returns a CBOR-encoded KEM challenge object (`C509KemChall`) with media type `application/c509-kemchall+cbor`.
 
 ~~~~~~~~~~~cddl
 C509KemChall = [
@@ -353,7 +337,7 @@ The media type of `C509KemChall` is `application/c509-kemchall+cbor` (see {{iana
 
 In particular (TBD: check consistency with {{NIST.SP.800-227}}):
 
-- `keyId` is the SHA-256 fingerprint of the CBOR-encoded `C509PublicKey`,
+- `keyId` is the SHA-256 fingerprint of the CBOR-encoded `C509SubjectPublicKeyInfo`,
 
 - `encapAlg` is the encapsulation algorithm (TBD: define a new registry or reuse a COSE algorithm), and
 
@@ -574,14 +558,14 @@ The `kemc` operation requests a KEM-based Proof-of-Possession challenge for a su
 
 ### Request {#kemc-request}
 
-An authenticated EST client sends a POST request containing a `C509PublicKey` ({{c509pubkey}}) to request a KEM challenge.
+An authenticated EST client sends a POST request containing a `C509SubjectPublicKeyInfo` ({{I-D.liao-cose-c509-additions}}) to request a KEM challenge.
 
 ~~~
 Method: POST
 Request target: /.well-known/est/<label>/kemc
-Media type: application/c509-pubkey+cbor (HTTP) /
+Media type: application/cose-c509-pubkey+cbor (HTTP) /
             Content-Format TBD (CoAP)
-Body: C509PublicKey
+Body: C509SubjectPublicKeyInfo
 ~~~
 
 If the request does not contain a KEM public key, the EST server MUST return HTTP 400 / CoAP 4.00 (Bad Request).  If the server supports KEM PoP for the submitted algorithm, it issues a challenge; otherwise, it MUST return HTTP 501 / CoAP 5.01 (Not Implemented).
@@ -759,47 +743,6 @@ IANA is requested to register the following entry in the "C509 CR Attributes" re
 +-------+-----------------------------------------------------------+
 ~~~
 
-### Media Type application/c509-pubkey+cbor {#iana-c509-pubkey}
-
-When the `application/c509-pubkey+cbor` media type is used, the payload is a `C509PublicKey` structure.
-
-Type name: application
-
-Subtype name: c509-pubkey+cbor
-
-Required parameters: N/A
-
-Optional parameters: N/A
-
-Encoding considerations: binary
-
-Security considerations: See the Security Considerations section of [[this document]].
-
-Interoperability considerations: N/A
-
-Published specification: [[this document]]
-
-Applications that use this media type: Applications that employ C509 public keys.
-
-Fragment identifier considerations: N/A
-
-Additional information:
-
-* Deprecated alias names for this type: N/A
-* Magic number(s): TBD2
-* File extension(s): .c509
-* Macintosh file type code(s): N/A
-
-Person & email address to contact for further information: iesg@ietf.org
-
-Intended usage: COMMON
-
-Restrictions on usage: N/A
-
-Author: ACE WG
-
-Change controller: IETF
-
 ### Media Type application/c509-kemchall+cbor {#iana-c509-kemchall}
 
 When the `application/c509-kemchall+cbor` media type is used, the payload is a `C509KemChall` structure.
@@ -843,16 +786,13 @@ Change controller: IETF
 
 ## CoAP Content-Formats Registry {#content-format}
 
-IANA is requested to add entries for `application/c509-pubkey+cbor` and `application/c509-kemchall+cbor` to the "CoAP Content-Formats" registry in the registry group "Constrained RESTful Environments (CoRE) Parameters".
+IANA is requested to add the entry for `application/c509-kemchall+cbor` to the "CoAP Content-Formats" registry in the registry group "Constrained RESTful Environments (CoRE) Parameters".
 
 ~~~~~~~~~~~
 +----------------------+---------+-----------+-------+------------+
 | Content              | Content | Media     | ID    | Reference  |
 | Format               | Coding  | Type      |       |            |
 +======================+=========+===========+=======+============+
-| application/         | -       | [[link    | TBD3  | [[this     |
-| c509-pubkey+cbor     |         | to x.y]]  |       | document]] |
-+----------------------+---------+-----------+-------+------------+
 | application/         | -       | [[link    | TBD7  | [[this     |
 | c509-kemchall+cbor   |         | to x.y]]  |       | document]] |
 +----------------------+---------+-----------+-------+------------+
@@ -985,9 +925,9 @@ EST Client                                 EST Server
 |                                               |
 | Method: POST                                  |
 | Request target: /.well-known/est/<p>/kemc     |
-| Media type: application/c509-pubkey+cbor      |
+| Media type: application/cose-c509-pubkey+cbor |
 |                                               |
-| <Base64-encoded C509PublicKey>                |
+| <Base64-encoded C509SubjectPublicKeyInfo>     |
 |---------------------------------------------->|
 |                                               |
 |                                               |
@@ -1062,7 +1002,7 @@ EST Client                                  EST Server
   |                   /serverkeygen               |
   | Media type: application/cose-c509-pkcs10+cbor |
   |                                               |
-  | <CBOR C509 CSR (no pubkey)>                   |
+  | <CBOR C509 CSR (no public key)>               |
   |---------------------------------------------->|
   |                                               | Generate
   |                                               | keypair,
@@ -1165,19 +1105,19 @@ EST Client                                  EST Server
 ## kemc {#flow-kemc-coap}
 
 ~~~aasvg
-EST Client                                  EST Server
-  |                                              |
-  | POST example.com/est/<p>/kemc                |
-  | (Content-Format: TBD)                        |
-  | { payload with CBOR-encoded C509PublicKey    |
-  |   in binary format }                         |
-  |--------------------------------------------->|
-  |                                              |
-  | 2.05 Content (Content-Format: TBD)           |
-  | { payload with CBOR-encoded C509KemChall     |
-  |   in binary format }                         |
-  |<---------------------------------------------|
-  |                                              |
+EST Client                                   EST Server
+  |                                               |
+  | POST example.com/est/<p>/kemc                 |
+  | (Content-Format: TBD)                         |
+  | { payload with CBOR-encoded                   |
+  |   C509SubjectPublicKeyInfo in binary format } |
+  |---------------------------------------------->|
+  |                                               |
+  | 2.05 Content (Content-Format: TBD)            |
+  | { payload with CBOR-encoded C509KemChall      |
+  |   in binary format }                          |
+  |<----------------------------------------------|
+  |                                               |
 ~~~
 {: #fig-kemc-coap title="Message flow of EST over CoAP/DTLS operation kemc"}
 
