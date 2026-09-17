@@ -472,13 +472,13 @@ On success, the EST server returns a CoAP 2.05 response with:
 
   - Media type: application/cose-c509+cbor; usage=chain (HTTP) / Content-Format TBD (CoAP)
 
-  - Body: A `COSE_C509` representing an ordered certificate chain.  The first element is the issuing CA certificate; subsequent elements are intermediate and root CA certificates in chain order.
+  - Body: A `COSE_C509` representing an ordered certificate chain.  The first element is the issuing CA certificate; subsequent elements are intermediate and root CA certificates in chain order. If a Root CA key update applies, the EST server SHOULD include the four "Root CA Key Update" certificates defined in {{RFC9810, Section 4.4}} in the response chain. If present, these certificates SHALL appear in the order OldWithNew, NewWithNew, NewWithOld, and OldWithOld.
 
 - For Request without `Accept` option or with `Accept: application/cose-c509+cbor` (HTTP) / `Accept=TBD` (CoAP):
 
   - Media type: application/cose-c509+cbor (HTTP) / Content-Format TBD (CoAP)
 
-  - Body: A `COSE_C509` representing an unordered certificate set.  The first element is the issuing CA certificate; subsequent elements are not sorted. If a Root CA key update applies, the EST server SHOULD include the four "Root CA Key Update" certificates OldWithOld, OldWithNew, NewWithOld, and NewWithNew in the response chain.  These are defined in {{RFC9810, Section 4.4}}.
+  - Body: A `COSE_C509` representing an unordered certificate set.  The first element is the issuing CA certificate; subsequent elements are not sorted. If a Root CA key update applies, the EST server SHOULD include the four "Root CA Key Update" certificates OldWithOld, OldWithNew, NewWithOld, and NewWithNew in the response chain.
 
 Successful `cacerts` / `crts` responses MAY include caching metadata as specified in {{response-cache}}.
 
